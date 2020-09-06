@@ -1,0 +1,25 @@
+{
+  "name": "ros-blessed",
+  "version": "0.0.1",
+  "description": "A blessed ('curses') toolbox for ROS. Like rqt but for the command line.",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "github.com/luminrobotics/ros-blessed"
+  },
+  "keywords": [
+    "ros",
+    "robotics",
+    "curses"
+  ],
+  "author": "Christian Fritz",
+  "license": "MIT",
+  "dependencies": {
+    "blessed": "^0.1.81",
+    "lodash": "^4.17.20",
+    "rosnodejs": "^3.0.2"
+  }
+}
