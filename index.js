@@ -8,6 +8,7 @@ const blessed = require('blessed');
 const _ = require('lodash');
 const ROS = require('./ros.js');
 const Queue = require('./queue.js');
+const utils = require('./utils.js');
 
 const logFile = fs.createWriteStream('/tmp/ros-blessed.log');
 const log = (...args) => {
@@ -50,6 +51,8 @@ const setScreen = (content) => {
   screen.render();
 };
 
+
+
 const screens = {
   topics: async () => {
     const data = await ros.getTopics();
@@ -67,18 +70,33 @@ const screens = {
     list.on('select', x => screens.topic(x.content));
   },
 
+
+
   topic: (topicName) => {
     log(topicName);
     setScreen(topicName);
+
+    const box = blessed.box({});
+
     const info = blessed.text({
       style: {
         fg: '#aaaa00'
       }
     });
-    const text = blessed.text({top: 1});
-    const box = blessed.box({});
+
+    const list = blessed.list({
+      top: 1,
+      keys: true,
+      style: {
+        selected: {
+          fg: 'green'
+        }
+      },
+    });
+    list.on('select', x => log(Object.keys(x), x.index, x.position));
+
     box.append(info);
-    box.append(text);
+    box.append(list);
     setScreen(box);
 
     const stats = {
@@ -87,13 +105,36 @@ const screens = {
     };
     let type;
 
+    const lineSelectors = [];
+
     ros.subscribe(topicName, (data, _type, size) => {
       type = _type;
-      text.setContent(util.inspect(data));
+      // text.setContent(util.inspect(data));
+      // const pretty = util.inspect(data);
+      // list.setItems(pretty.split('\n'));
+
+      const items = _.mapValues(data, v =>
+        util.inspect(v, {depth: 1}).split('\n'));
+
+      lineSelectors.length = 0; // clear list
+      const flat = [];
+      _.each(items, (item, key) => {
+        item.forEach((line, i) => {
+          lineSelectors.push({line, key});
+          if (i == 0) {
+            // first line in group: add key
+            line = `${key}: ${line}`;
+          }
+          flat.push(line);
+        });
+      });
+      list.setItems(flat);
+
       const now = Date.now();
       stats.times.add(now);
       stats.sizes.add(size);
       screen.render();
+      list.focus();
     });
 
     const updateInfo = () => {
@@ -101,7 +142,12 @@ const screens = {
       const hz = stats.times.length > 1 ? stats.times.length/timeDiff : 0;
       const sum = stats.sizes.reduce((sum, size) => sum += size, 0);
       const bw = stats.sizes.length > 0 && (sum / timeDiff) / 1e3;
-      info.setContent(`Topic: ${topicName}, Type: ${type}, Hz: ${hz.toLocaleString()}, Bandwidth: ${bw.toLocaleString()} KB/s`);
+      info.setContent([
+          `Topic: ${topicName}`,
+          `Type: ${type}`,
+          `Hz: ${hz.toLocaleString()}`,
+          `Bandwidth: ${bw.toLocaleString()} KB/s`
+        ].join(','));
       screen.render();
     };
     updateInfo();
