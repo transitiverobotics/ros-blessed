@@ -107,8 +107,9 @@ const screens = {
 
     const lineSelectors = [];
 
-    ros.subscribe(topicName, (data, _type, size) => {
+    ros.subscribe(topicName, (data, _type, size, nodeUri) => {
       type = _type;
+      // log(nodeUri);
       // text.setContent(util.inspect(data));
       // const pretty = util.inspect(data);
       // list.setItems(pretty.split('\n'));

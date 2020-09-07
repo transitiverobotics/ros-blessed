@@ -26,8 +26,8 @@ class ROS {
   async subscribe(topic, callback) {
     const response = await this.rn._node._masterApi.getPublishedTopics();
     const info = _.find(response.topics, {name: topic});
-    this.rn.subscribe(topic, info.type, (data, size) =>
-      callback(data, info.type, size));
+    this.rn.subscribe(topic, info.type, (data, size, nodeUri) =>
+      callback(data, info.type, size, nodeUri));
   }
 
   unsubscribe(topic) {
