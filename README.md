@@ -38,8 +38,9 @@ sudo apt install nodejs
 
 Then install ros-blessed:
 ```
-sudo npm install -g ros-blessed
+sudo npm install -g ros-blessed rosnodejs@chfritz/rosjs#tf_message_size_nodeUri_buffer_prepared
 ```
+For now you need to manually install the peer dependency rosnodejs. Hopefully that will change once a new version of that package is published at which point the dependency will be installed automatically as it should be.
 
 Make sure you have sourced your ROS workspace/installation, then call it using:
 ```

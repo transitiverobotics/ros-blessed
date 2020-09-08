@@ -1,6 +1,6 @@
 {
   "name": "ros-blessed",
-  "version": "0.0.5",
+  "version": "0.0.6",
   "description": "A blessed ('curses') toolbox for ROS. Like rqt but for the command line.",
   "main": "index.js",
   "scripts": {
@@ -22,9 +22,9 @@
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "lodash": "^4.17.20",
+    "lodash": "^4.17.20"
   },
   "peerDependencies": {
-    "rosnodejs": "chfritz/rosjs"
+    "rosnodejs": "chfritz/rosjs#tf_message_size_nodeUri_buffer_prepared"
   }
 }
