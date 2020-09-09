@@ -57,7 +57,7 @@ const screens = {
   topics: async () => {
     const data = await ros.getTopics();
     const list = blessed.list({
-      items: _.map(data.topics, 'name'),
+      items: _.map(data.topics, 'name').sort(),
       keys: true,
       style: {
         selected: {
@@ -71,19 +71,16 @@ const screens = {
   },
 
 
-
   topic: (topicName) => {
     log(topicName);
-    setScreen(topicName);
+    // setScreen(topicName);
 
     const box = blessed.box({});
-
     const info = blessed.text({
       style: {
         fg: '#aaaa00'
       }
     });
-
     const list = blessed.list({
       top: 1,
       keys: true,
@@ -95,8 +92,34 @@ const screens = {
     });
     list.on('select', x => log(Object.keys(x), x.index, x.position));
 
+    const publishers = blessed.list({
+      // top: 3, // will be adjusted on the fly
+      items: ['Publishers: ...'],
+      keys: true,
+      style: {
+        selected: {
+          fg: 'red'
+        }
+      },
+    });
+    publishers.on('select', x => log(Object.keys(x), x.index, x.position));
+
+    const subscribers = blessed.list({
+      // top: 5, // will be adjusted on the fly
+      items: ['Subscribers: ...'],
+      keys: true,
+      style: {
+        selected: {
+          fg: 'cyan'
+        }
+      },
+    });
+    subscribers.on('select', x => log(Object.keys(x), x.index, x.position));
+
     box.append(info);
     box.append(list);
+    box.append(publishers);
+    box.append(subscribers);
     setScreen(box);
 
     const stats = {
@@ -130,6 +153,8 @@ const screens = {
         });
       });
       list.setItems(flat);
+      publishers.top = flat.length + 2;
+      subscribers.top = flat.length + 2 + publishers.height + 1;
 
       const now = Date.now();
       stats.times.add(now);
@@ -146,9 +171,19 @@ const screens = {
       info.setContent([
           `Topic: ${topicName}`,
           `Type: ${type}`,
-          `Hz: ${hz.toLocaleString()}`,
-          `Bandwidth: ${bw.toLocaleString()} KB/s`
-        ].join(','));
+          `${hz.toLocaleString()} Hz`,
+          `${bw.toLocaleString()} KB/s`
+        ].join('  '));
+
+      ros.getSystemState().then(state => {
+        const pubList = state.publishers[topicName] || [];
+        publishers.setItems(pubList);
+        publishers.height = pubList.length;
+        subscribers.setItems(state.subscribers[topicName] || []);
+        log(publishers.top, publishers.height);
+        screen.render();
+      });
+
       screen.render();
     };
     updateInfo();
@@ -183,14 +218,13 @@ const menu = blessed.listbar({
   }
 });
 
-setScreen('Select a tab (using number keys) to get started.');
-
 // Append our box to the screen.
 screen.append(menu);
 screen.append(body);
 
 // ---------------------------------------
 // MAIN
+setScreen('Select a tab (using number keys) to get started.');
 
 // Focus our element.
 menu.focus();
@@ -198,6 +232,5 @@ menu.focus();
 // Render the screen.
 console.log('connecting to ROS master');
 const ros = new ROS(() => {
-  blessed.program().clear(); // clear screen
-  screen.render();
-});
+    screen.render();
+  }, [fs.createWriteStream('/tmp/ros-blessed.ros.log')]);

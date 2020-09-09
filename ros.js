@@ -6,10 +6,15 @@ const _ = require('lodash');
 
 class ROS {
 
-  constructor(cb) {
-    rosnodejs.log.infoOnce = {}
-    rosnodejs.initNode('/ros_blessed', { node: { forceExit: true }})
-      .then((rosNode) => {
+  constructor(cb, logStreams = []) {
+    rosnodejs.log.clearStreams(); // remove all existing log streams
+    // TODO: show errors/warnings somewhere in the app, not just in file-log
+    // see (below)
+
+    rosnodejs.initNode('/ros_blessed', {
+      node: { forceExit: true },
+      logging: {streams: logStreams}
+    }).then((rosNode) => {
       this.rn = rosNode;
       cb();
     });
@@ -32,6 +37,14 @@ class ROS {
 
   unsubscribe(topic) {
     this.rn.unsubscribe(topic);
+  }
+
+  async getSystemState() {
+    if (!this.rn) {
+      console.warn('not connected to ROS master');
+      return;
+    }
+    return this.rn._node._masterApi.getSystemState();
   }
 };
 
