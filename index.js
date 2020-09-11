@@ -52,6 +52,33 @@ const setScreen = (content) => {
 };
 
 
+class Vertical {
+  constructor() {
+    this.box = blessed.box({});
+    this.on = this.box.on.bind(this.box);
+    this.box.on('prerender', this.readjust.bind(this));
+  }
+
+  get() {
+    return this.box;
+  }
+
+// class Vertical extends blessed.box {
+
+  append(node) {
+    this.box.append(node);
+    node.position.height = 1; // needed to avoid error when getting node.height
+  }
+
+  readjust() {
+    let height = 0;
+    this.box.children.forEach(child => {
+      child.top = height;
+      height += child.height;
+    });
+  }
+};
+
 
 const screens = {
   topics: async () => {
@@ -75,14 +102,16 @@ const screens = {
     log(topicName);
     // setScreen(topicName);
 
-    const box = blessed.box({});
+    // const box = blessed.box({});
+    const box = new Vertical();
     const info = blessed.text({
       style: {
         fg: '#aaaa00'
-      }
+      },
+      width: '100%'
     });
     const list = blessed.list({
-      top: 1,
+      // top: 1,
       keys: true,
       style: {
         selected: {
@@ -111,16 +140,16 @@ const screens = {
       style: {
         selected: {
           fg: 'cyan'
-        }
+        },
       },
     });
     subscribers.on('select', x => log(Object.keys(x), x.index, x.position));
 
     box.append(info);
-    box.append(list);
     box.append(publishers);
     box.append(subscribers);
-    setScreen(box);
+    box.append(list);
+    setScreen(box.get());
 
     const stats = {
       times: new Queue(50),
@@ -152,9 +181,8 @@ const screens = {
           flat.push(line);
         });
       });
+      list.height = flat.length;
       list.setItems(flat);
-      publishers.top = flat.length + 2;
-      subscribers.top = flat.length + 2 + publishers.height + 1;
 
       const now = Date.now();
       stats.times.add(now);
@@ -177,10 +205,15 @@ const screens = {
 
       ros.getSystemState().then(state => {
         const pubList = state.publishers[topicName] || [];
+        pubList.unshift('Publishers:');
         publishers.setItems(pubList);
         publishers.height = pubList.length;
-        subscribers.setItems(state.subscribers[topicName] || []);
-        log(publishers.top, publishers.height);
+
+        const subList = state.subscribers[topicName] || [];
+        subList.unshift('Subscribers:');
+        subscribers.setItems(subList);
+        subscribers.height = subList.length;
+
         screen.render();
       });
 

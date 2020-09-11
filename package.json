@@ -1,6 +1,6 @@
 {
   "name": "ros-blessed",
-  "version": "0.0.7",
+  "version": "0.0.8",
   "description": "A blessed ('curses') toolbox for ROS. Like rqt but for the command line.",
   "main": "index.js",
   "scripts": {

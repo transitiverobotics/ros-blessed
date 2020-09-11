@@ -18,15 +18,22 @@ This is work in progress. So far this implements the basic functionality of the 
   - [ ] view tree
   - [ ] monitor
   - [ ] echo
+- [ ] rosnode
+  - [ ] list
+  - [ ] info
 - [ ] rosservice
   - [ ] list
   - [ ] call
   - [ ] info
   - [ ] args  
 - [ ] log levels
-- [ ] rosnode
+- [ ] rosparam
   - [ ] list
-  - [ ] info
+  - [ ] get
+  - [ ] set
+  - [ ] delete
+
+`rosmsg show` and `rossrv show` are partially accomplished by the pub/call methods for topcis and services, respectively.
 
 
 ## Install
@@ -40,6 +47,8 @@ Then install ros-blessed:
 ```
 sudo npm install -g ros-blessed
 ```
+If you prefer to install this package in your user-space, without `sudo`, you can follow [these instructions](https://stackoverflow.com/a/59227497/1087119).
+
 
 Make sure you have sourced your ROS workspace/installation, then call it using:
 ```
