@@ -1,5 +1,6 @@
 const rosnodejs = require('rosnodejs');
 const _ = require('lodash');
+const tf = require('tf-rosnodejs');
 
 // const std_msgs = rosnodejs.require('std_msgs').msg;
 // const SetBool = rosnodejs.require('std_srvs').srv.SetBool;
@@ -16,6 +17,7 @@ class ROS {
       logging: {streams: logStreams}
     }).then((rosNode) => {
       this.rn = rosNode;
+      tf.init(rosNode);
       cb();
     });
   }
@@ -45,6 +47,10 @@ class ROS {
       return;
     }
     return this.rn._node._masterApi.getSystemState();
+  }
+
+  getTFForest() {
+    return tf.getForest();
   }
 };
 

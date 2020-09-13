@@ -5,7 +5,9 @@
 const fs = require('fs');
 const util = require('util');
 const blessed = require('blessed');
+const contrib = require('blessed-contrib');
 const _ = require('lodash');
+
 const ROS = require('./ros.js');
 const Queue = require('./queue.js');
 const utils = require('./utils.js');
@@ -226,6 +228,36 @@ const screens = {
       ros.unsubscribe(topicName);
       clearInterval(interval);
     });
+  },
+
+
+
+  tfTree: () => {
+    const tree = contrib.tree({
+      extended: true,
+      template: {lines: true}
+    });
+    tree.focus()
+
+    tree.on('select',function(node){
+      if (node.myCustomProperty){
+        console.log(node.myCustomProperty);
+      }
+    });
+
+    const data = {
+      extended: true,
+      children: JSON.parse(JSON.stringify(ros.getTFForest()))
+    };
+    tree.setData(data);
+    // test adding live:
+    // setTimeout(() => {
+    //     data.children.Fruit.children.Added = {};
+    //     tree.setData(data);
+    //     screen.render();
+    //   }, 2000);
+
+    setScreen(tree);
   }
 };
 
@@ -236,7 +268,8 @@ const menu = blessed.listbar({
       keys: ['1'],
       callback: screens.topics
     },
-    services: () => { setScreen('servc'); }
+    services: () => { setScreen('servc'); },
+    TF: screens.tfTree
   },
   autoCommandKeys: true,
   style: {
