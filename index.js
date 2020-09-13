@@ -231,6 +231,27 @@ const screens = {
   },
 
 
+  services: async () => {
+    const state = await ros.getSystemState();
+    log(state);
+    const list = blessed.list({
+      items: Object.keys(state.services).sort(),
+      keys: true,
+      style: {
+        selected: {
+          fg: 'blue'
+        }
+      },
+    });
+    setScreen(list);
+    list.focus();
+    list.on('select', x => screens.service(x.content));
+  },
+
+  service: async (serviceName) => {
+    const data = await ros.getService(serviceName);
+    log(data);
+  },
 
   tfTree: () => {
     const tree = contrib.tree({
@@ -268,7 +289,7 @@ const menu = blessed.listbar({
       keys: ['1'],
       callback: screens.topics
     },
-    services: () => { setScreen('servc'); },
+    services: screens.services,
     TF: screens.tfTree
   },
   autoCommandKeys: true,

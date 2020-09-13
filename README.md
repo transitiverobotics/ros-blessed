@@ -11,18 +11,18 @@ This is work in progress. So far this implements the basic functionality of the 
   - [x] hz
   - [x] bw
   - [x] type
-  - [ ] info
+  - [x] info
   - [ ] pub
   - [ ] find
 - [ ] tf
-  - [ ] view tree
+  - [x] view tree
   - [ ] monitor
   - [ ] echo
 - [ ] rosnode
   - [ ] list
   - [ ] info
 - [ ] rosservice
-  - [ ] list
+  - [x] list
   - [ ] call
   - [ ] info
   - [ ] args  

@@ -49,6 +49,12 @@ class ROS {
     return this.rn._node._masterApi.getSystemState();
   }
 
+  async getService(serviceName) {
+    const options = {};
+    return this.rn._node._masterApi
+      .lookupService('/ros_blessed', serviceName, options);
+  }
+
   getTFForest() {
     return tf.getForest();
   }
