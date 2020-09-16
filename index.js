@@ -97,6 +97,15 @@ const screens = {
     setScreen(list);
     list.focus();
     list.on('select', x => screens.topic(x.content));
+    // list.on('keypress', log); // to get key names
+    list.key(['pagedown'], function(ch, key) {
+      list.down(screen.height);
+      screen.render();
+    });
+    list.key(['pageup'], function(ch, key) {
+      list.up(screen.height);
+      screen.render();
+    });
   },
 
 

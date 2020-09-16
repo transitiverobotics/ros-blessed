@@ -33,7 +33,7 @@ This is work in progress. So far this implements the basic functionality of the 
   - [ ] set
   - [ ] delete
 
-`rosmsg show` and `rossrv show` are partially accomplished by the pub/call methods for topcis and services, respectively.
+`rosmsg show` and `rossrv show` are partially accomplished by the pub/call methods for topics and services, respectively.
 
 
 ## Install
