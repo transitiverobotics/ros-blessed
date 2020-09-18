@@ -241,7 +241,7 @@ const screens = {
 
 
   services: async () => {
-    const state = await ros.getSystemState();
+    const state = ros.getState();
     log(state);
     const list = blessed.list({
       items: Object.keys(state.services).sort(),
@@ -262,6 +262,7 @@ const screens = {
     log(data);
   },
 
+
   tfTree: () => {
     const tree = contrib.tree({
       extended: true,
@@ -270,25 +271,34 @@ const screens = {
     tree.focus()
 
     tree.on('select',function(node){
-      if (node.myCustomProperty){
-        console.log(node.myCustomProperty);
+      if (node.custom){
+        log(node.custom);
       }
     });
 
-    const data = {
-      extended: true,
-      children: JSON.parse(JSON.stringify(ros.getTFForest()))
-    };
-    tree.setData(data);
-    // test adding live:
-    // setTimeout(() => {
-    //     data.children.Fruit.children.Added = {};
-    //     tree.setData(data);
-    //     screen.render();
-    //   }, 2000);
-
     setScreen(tree);
+    const update = () => {
+      const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
+      decorateTFTree(decorated);
+      tree.setData({
+        extended: true,
+        children: decorated
+      });
+      screen.render();
+    };
+
+    update();
+    const interval = setInterval(update, 2000);
   }
+};
+
+
+const decorateTFTree = (tree) => {
+  _.each(tree, node => {
+    const nodeName = node.custom && ros.getNodeName(node.custom.nodeUri);
+    node.name = `${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
+    decorateTFTree(node.children);
+  });
 };
 
 

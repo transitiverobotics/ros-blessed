@@ -18,9 +18,33 @@ class ROS {
     }).then((rosNode) => {
       this.rn = rosNode;
       tf.init(rosNode);
+      this.updateState();
+      setInterval(this.updateState.bind(this), 5000);
       cb();
     });
   }
+
+  /** fetch the state from the ROS master and update the list of nodes we
+  maintain */
+  async updateState() {
+    this.state = await this.getSystemState();
+    const nodeNames = _.uniq(_.flattenDeep([
+      Object.values(this.state.publishers),
+      Object.values(this.state.subscribers),
+      Object.values(this.state.services) ]));
+    const nodes = {};
+    const all = await Promise.all(nodeNames.map(async name => {
+      const resp = await this.rn._node._masterApi.lookupNode('/ros-blessed', name, {});
+      const uri = resp[2];
+      return {name, uri};
+    }));
+    all.forEach(({name, uri}) => nodes[uri] = name);
+    this.nodes = nodes;
+  }
+
+  getState() { return this.state; }
+
+  getNodeName(nodeUri) { return this.nodes[nodeUri]; }
 
   async getTopics() {
     if (!this.rn) {
