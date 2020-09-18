@@ -1,6 +1,9 @@
 # ros-blessed
 A blessed, "curses", toolbox for ROS. Like rqt but for the command line.
 
+![demo](https://raw.githubusercontent.com/luminrobotics/ros-blessed/master/demo.gif)
+
+
 ## Status and Roadmap
 
 This is work in progress. So far this implements the basic functionality of the following checked items. All other items indicate future plans. PRs welcome!
