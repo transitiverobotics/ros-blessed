@@ -178,7 +178,7 @@ const screens = {
       // list.setItems(pretty.split('\n'));
 
       const items = _.mapValues(data, v =>
-        util.inspect(v, {depth: 1}).split('\n'));
+        util.inspect(v, {depth: 4}).split('\n'));
 
       lineSelectors.length = 0; // clear list
       const flat = [];
@@ -258,10 +258,15 @@ const screens = {
   },
 
   service: async (serviceName) => {
-    const data = await ros.getService(serviceName);
-    log(data);
+    const client = await ros.getService(serviceName);
+    const template = ros.getServiceDefinition(client);
+    if (template == "{}") {
+      const response = await client.call({});
+      setScreen(JSON.stringify(response, true, 2));
+    } else {
+      setScreen(`need input: ${template} -- not yet implemented`);
+    }
   },
-
 
   tfTree: () => {
     const tree = contrib.tree({
@@ -274,6 +279,7 @@ const screens = {
       if (node.custom){
         log(node.custom);
       }
+      screens.tf(node.custom.tf.header.frame_id, node.custom.tf.child_frame_id);
     });
 
     setScreen(tree);
@@ -289,6 +295,17 @@ const screens = {
 
     update();
     const interval = setInterval(update, 2000);
+    // #TODO: need to add a reliable way to stop these intervals; some sort of
+    // onUnmount or similar (create a class for screens)
+  },
+
+  /** tf echo */
+  tf: (from, to) => {
+    log('tf', from, to);
+    const interval = setInterval(() => {
+        const tf = ros.getTF(from, to);
+        setScreen(JSON.stringify(tf, 2, 2));
+      }, 2000);
   }
 };
 
@@ -337,6 +354,6 @@ menu.focus();
 
 // Render the screen.
 console.log('connecting to ROS master');
-const ros = new ROS(() => {
+const ros = new ROS(log, () => {
     screen.render();
   }, [fs.createWriteStream('/tmp/ros-blessed.ros.log')]);

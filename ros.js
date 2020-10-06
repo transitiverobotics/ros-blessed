@@ -5,9 +5,11 @@ const tf = require('tf-rosnodejs');
 // const std_msgs = rosnodejs.require('std_msgs').msg;
 // const SetBool = rosnodejs.require('std_srvs').srv.SetBool;
 
+let log;
 class ROS {
 
-  constructor(cb, logStreams = []) {
+  constructor(_log, cb, logStreams = []) {
+    log = _log;
     rosnodejs.log.clearStreams(); // remove all existing log streams
     // TODO: show errors/warnings somewhere in the app, not just in file-log
     // see (below)
@@ -75,12 +77,28 @@ class ROS {
 
   async getService(serviceName) {
     const options = {};
-    return this.rn._node._masterApi
-      .lookupService('/ros_blessed', serviceName, options);
+    const type = await this.rn.getServiceType(serviceName);
+    return this.rn.serviceClient(serviceName, type.type);
+  }
+
+  getServiceDefinition(client) {
+    const type = client.getType();
+    const [pkg, subtype] = type.split('/');
+    const Type = rosnodejs.require(pkg).srv[subtype];
+    const template = JSON.stringify(new Type.Request());
+    log(Type.Request.messageDefinition(), template);
+    return template;
   }
 
   getTFForest() {
     return tf.getForest();
+  }
+
+  getTF = tf.getTF;
+
+  shutdown() {
+    rosnodejs.shutdown();
+    log('shut down ros node');
   }
 };
 

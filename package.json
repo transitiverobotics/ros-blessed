@@ -1,11 +1,12 @@
 {
   "name": "ros-blessed",
-  "version": "0.1.4",
+  "version": "0.1.5",
   "description": "A blessed ('curses') toolbox for ROS. Like rqt but for the command line.",
   "homepage": "https://github.com/luminrobotics/ros-blessed",
   "main": "index.js",
   "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
+    "test": "mocha --exit *.test.js",
+    "test-on-save": "while inotifywait -e close_write *.js; do npm test; done"
   },
   "bin": {
     "ros-blessed": "index.js"
@@ -27,5 +28,8 @@
     "lodash": "^4.17.20",
     "rosnodejs": "chfritz/rosjs",
     "tf-rosnodejs": "^0.2.1"
+  },
+  "devDependencies": {
+    "mocha": "^8.1.3"
   }
 }

@@ -27,6 +27,8 @@ This is work in progress. So far this implements the basic functionality of the 
 - [ ] rosservice
   - [x] list
   - [ ] call
+    - [x] without argument
+    - [ ] with argument
   - [ ] info
   - [ ] args  
 - [ ] log levels
