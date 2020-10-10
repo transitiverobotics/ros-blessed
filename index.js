@@ -43,14 +43,19 @@ const body = blessed.box({
 const setScreen = (content) => {
   body.children && body.children.forEach(x => x.destroy());
 
+  let rtv;
   if (content instanceof blessed.node) {
     body.append(content);
+    rtv = content;
   } else if (typeof content == 'object') {
-    body.append(blessed.text({content: util.inspect(content)}));
+    rtv = blessed.text({content: util.inspect(content)});
+    body.append(rtv);
   } else {
-    body.append(blessed.text({content}));
+    rtv = blessed.text({content});
+    body.append(rtv);
   }
   screen.render();
+  return rtv;
 };
 
 
@@ -64,8 +69,6 @@ class Vertical {
   get() {
     return this.box;
   }
-
-// class Vertical extends blessed.box {
 
   append(node) {
     this.box.append(node);
@@ -81,6 +84,13 @@ class Vertical {
   }
 };
 
+// /** abstract screen class */
+// class Screen {
+//   constructor(name) {
+//     this.name = name;
+//   }
+//   unmount() {}
+// }
 
 const screens = {
   topics: async () => {
@@ -271,15 +281,31 @@ const screens = {
   tfTree: () => {
     const tree = contrib.tree({
       extended: true,
-      template: {lines: true}
+      template: {lines: true},
     });
     tree.focus()
 
-    tree.on('select',function(node){
-      if (node.custom){
-        log(node.custom);
+    let from;
+    // select From and To in sequence
+    tree.on('select', function(node){
+      log(node.frame, node.custom);
+      if (!from) {
+        from = node.frame;
+        bottomText.setContent(`From: ${from}`);
+        screen.render();
+        bottomText.hidden = false;
+      } else {
+        screens.tf(from, node.frame);
+        bottomText.setContent('');
+        bottomText.hidden = true;
       }
-      screens.tf(node.custom.tf.header.frame_id, node.custom.tf.child_frame_id);
+    });
+    // on backspace: clear From selection
+    screen.key(['backspace'], function(ch, key) {
+      log(ch, key);
+      bottomText.setContent(`From: `);
+      screen.render();
+      from = null;
     });
 
     setScreen(tree);
@@ -294,26 +320,55 @@ const screens = {
     };
 
     update();
-    const interval = setInterval(update, 2000);
-    // #TODO: need to add a reliable way to stop these intervals; some sort of
+    const interval = setInterval(update, 1000);
+    // #TODO: need to add a more reliable way to stop these intervals; some sort of
     // onUnmount or similar (create a class for screens)
+    tree.on('destroy', () => {
+      log('tree destroyed');
+      bottomText.hidden = true;
+      clearInterval(interval);
+    });
   },
 
   /** tf echo */
   tf: (from, to) => {
     log('tf', from, to);
-    const interval = setInterval(() => {
-        const tf = ros.getTF(from, to);
-        setScreen(JSON.stringify(tf, 2, 2));
-      }, 2000);
+
+    const box = blessed.box();
+    const info = blessed.text({
+      style: {
+        fg: '#aaaa00'
+      },
+      width: '100%',
+      content: `${from} -> ${to}`,
+      height: 1
+    });
+    box.append(info);
+
+    const text = blessed.text({content: '', height: 15, top: 1});
+    box.append(text);
+    setScreen(box);
+
+    // setScreen(text);
+    const update = () => {
+      const tf = ros.getTF(from, to);
+      text.setContent(JSON.stringify(tf, 2, 2));
+      screen.render();
+    };
+    update();
+    const interval = setInterval(update, 100);
+    text.on('destroy', () => {
+      clearInterval(interval);
+    });
   }
 };
 
-
+/** decorate TF tree with publisher names */
 const decorateTFTree = (tree) => {
   _.each(tree, node => {
     const nodeName = node.custom && ros.getNodeName(node.custom.nodeUri);
-    node.name = `${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
+    node.frame = node.name;
+    node.name = ` ${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
     decorateTFTree(node.children);
   });
 };
@@ -344,6 +399,15 @@ const menu = blessed.listbar({
 // Append our box to the screen.
 screen.append(menu);
 screen.append(body);
+const bottomText = blessed.text({
+  bottom: 0,
+  content: 'info here',
+  style: {
+    bg: '#0000a0',
+  },
+  hidden: true // unhide on demand
+});
+screen.append(bottomText);
 
 // ---------------------------------------
 // MAIN

@@ -20,7 +20,7 @@ This is work in progress. So far this implements the basic functionality of the 
 - [ ] tf
   - [x] view tree
   - [ ] monitor
-  - [ ] echo
+  - [x] echo
 - [ ] rosnode
   - [ ] list
   - [ ] info
