@@ -77,7 +77,7 @@ class ROS {
 
   async getService(serviceName) {
     const options = {};
-    const type = await this.rn.getServiceType(serviceName);
+    const type = await this.rn.getServiceHeader(serviceName);
     return this.rn.serviceClient(serviceName, type.type);
   }
 
