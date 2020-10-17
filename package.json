@@ -24,7 +24,6 @@
   "license": "MIT",
   "dependencies": {
     "blessed": "^0.1.81",
-    "blessed-contrib": "^4.8.20",
     "lodash": "^4.17.20",
     "rosnodejs": "github:chfritz/rosjs",
     "tf-rosnodejs": "^0.3.1"
