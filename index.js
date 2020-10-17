@@ -10,14 +10,8 @@ const _ = require('lodash');
 
 const ROS = require('./ros.js');
 const Queue = require('./queue.js');
-const utils = require('./utils.js');
-
-const logFile = fs.createWriteStream('/tmp/ros-blessed.log');
-const log = (...args) => {
-  const textArgs = args.map(arg => (typeof arg == 'object' ?
-    util.inspect(arg) : arg));
-  logFile.write(textArgs.join(' ') + '\n');
-};
+const { log } = require('./utils.js');
+const { Tree } = require('./components.js');
 
 // Create a screen object.
 const screen = blessed.screen({
@@ -279,54 +273,54 @@ const screens = {
   },
 
   tfTree: () => {
-    const tree = contrib.tree({
-      extended: true,
-      template: {lines: true},
+    const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
+    decorateTFTree(decorated);
+    log('after', decorated);
+    const t = new Tree(decorated, {
+      renderer: treeNode => `${treeNode.name} ${treeNode.publisher ? `[${treeNode.publisher}]` : ''}`
     });
-    tree.focus()
-
     let from;
-    // select From and To in sequence
-    tree.on('select', function(node){
-      log(node.frame, node.custom);
+    t.on('select', node => {
+      log(node.name);
       if (!from) {
-        from = node.frame;
+        from = node.name;
         bottomText.setContent(`From: ${from}`);
-        screen.render();
         bottomText.hidden = false;
+        screen.render();
       } else {
-        screens.tf(from, node.frame);
+        screens.tf(from, node.name);
         bottomText.setContent('');
         bottomText.hidden = true;
       }
-    });
-    // on backspace: clear From selection
-    screen.key(['backspace'], function(ch, key) {
-      log(ch, key);
-      bottomText.setContent(`From: `);
-      screen.render();
-      from = null;
-    });
 
-    setScreen(tree);
+      // log(line);
+      // line._label += 'from';
+      // t.render();
+      // screen.render();
+    });
+    const rendered = t.render();
+    setScreen(rendered);
+
     const update = () => {
       const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
       decorateTFTree(decorated);
-      tree.setData({
-        extended: true,
-        children: decorated
-      });
+      t.update(decorated);
       screen.render();
     };
 
     update();
     const interval = setInterval(update, 1000);
-    // #TODO: need to add a more reliable way to stop these intervals; some sort of
-    // onUnmount or similar (create a class for screens)
-    tree.on('destroy', () => {
+    t.on('destroy', () => {
       log('tree destroyed');
       bottomText.hidden = true;
       clearInterval(interval);
+    });
+
+    screen.key(['backspace'], function(ch, key) {
+      log(ch, key);
+      bottomText.setContent(`From: `);
+      screen.render();
+      from = null;
     });
   },
 
@@ -364,11 +358,17 @@ const screens = {
 };
 
 /** decorate TF tree with publisher names */
+// const decorateTFTree = (tree) => {
+//   _.each(tree, node => {
+//     const nodeName = node.custom && ros.getNodeName(node.custom.nodeUri);
+//     node.name = ` ${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
+//     decorateTFTree(node.children);
+//   });
+// };
+
 const decorateTFTree = (tree) => {
   _.each(tree, node => {
-    const nodeName = node.custom && ros.getNodeName(node.custom.nodeUri);
-    node.frame = node.name;
-    node.name = ` ${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
+    node.publisher = node.custom && ros.getNodeName(node.custom.nodeUri);
     decorateTFTree(node.children);
   });
 };

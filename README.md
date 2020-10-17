@@ -30,7 +30,7 @@ This is work in progress. So far this implements the basic functionality of the 
     - [x] without argument
     - [ ] with argument
   - [ ] info
-  - [ ] args  
+  - [x] args  
 - [ ] log levels
 - [ ] rosparam
   - [ ] list
