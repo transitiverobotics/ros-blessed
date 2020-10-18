@@ -5,7 +5,6 @@
 const fs = require('fs');
 const util = require('util');
 const blessed = require('blessed');
-const contrib = require('blessed-contrib');
 const _ = require('lodash');
 
 const ROS = require('./ros.js');
@@ -358,14 +357,6 @@ const screens = {
 };
 
 /** decorate TF tree with publisher names */
-// const decorateTFTree = (tree) => {
-//   _.each(tree, node => {
-//     const nodeName = node.custom && ros.getNodeName(node.custom.nodeUri);
-//     node.name = ` ${node.name}${nodeName ? ` [${nodeName}]` : ''}`;
-//     decorateTFTree(node.children);
-//   });
-// };
-
 const decorateTFTree = (tree) => {
   _.each(tree, node => {
     node.publisher = node.custom && ros.getNodeName(node.custom.nodeUri);
