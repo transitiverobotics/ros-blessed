@@ -10,7 +10,7 @@ const _ = require('lodash');
 const ROS = require('./ros.js');
 const Queue = require('./queue.js');
 const { log } = require('./utils.js');
-const { Tree } = require('./components.js');
+const { Tree, List } = require('./components.js');
 
 // Create a screen object.
 const screen = blessed.screen({
@@ -88,27 +88,10 @@ class Vertical {
 const screens = {
   topics: async () => {
     const data = await ros.getTopics();
-    const list = blessed.list({
-      items: _.map(data.topics, 'name').sort(),
-      keys: true,
-      style: {
-        selected: {
-          fg: 'green'
-        }
-      },
-    });
-    setScreen(list);
-    list.focus();
+
+    const list = new List(_.map(data.topics, 'name').sort(), screen);
     list.on('select', x => screens.topic(x.content));
-    // list.on('keypress', log); // to get key names
-    list.key(['pagedown'], function(ch, key) {
-      list.down(screen.height);
-      screen.render();
-    });
-    list.key(['pageup'], function(ch, key) {
-      list.up(screen.height);
-      screen.render();
-    });
+    setScreen(list.render());
   },
 
 

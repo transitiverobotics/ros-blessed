@@ -85,4 +85,50 @@ class Tree extends EventEmitter {
 
 }
 
-module.exports = { Tree };
+
+class List extends EventEmitter {
+
+  constructor(items, screen) {
+    super();
+    const list = blessed.list({
+      items,
+      keys: true,
+      style: {
+        selected: {
+          fg: 'green'
+        }
+      },
+    });
+
+    list.on('select', x => this.emit('select', x.content));
+    list.key(['pagedown'], function(ch, key) {
+      list.down(screen.height);
+      screen.render();
+    });
+    list.key(['pageup'], function(ch, key) {
+      list.up(screen.height, this);
+      screen.render();
+    });
+
+    list.on('keypress', (ch, key) => {
+      if (ch) {
+        this.search += ch;
+        const index = items.findIndex(x => x.includes(this.search));
+        log(this.search, index);
+        list.select(index);
+        screen.render();
+      }
+    });
+
+    this.list = list;
+    this.search = '';
+  }
+
+  render() {
+    this.list.focus();
+    return this.list;
+  }
+}
+
+
+module.exports = { Tree, List };
