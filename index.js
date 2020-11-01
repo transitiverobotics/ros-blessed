@@ -19,6 +19,15 @@ const screen = blessed.screen({
 
 screen.title = 'ROS Blessed';
 
+const bottomText = blessed.text({
+  bottom: 0,
+  content: 'info here',
+  style: {
+    bg: '#0000a0',
+  },
+  hidden: true // unhide on demand
+});
+
 // Quit on Escape, q, or Control-C.
 screen.key(['escape', 'q', 'C-c'], function(ch, key) {
   return process.exit(0);
@@ -77,21 +86,46 @@ class Vertical {
   }
 };
 
-// /** abstract screen class */
-// class Screen {
-//   constructor(name) {
-//     this.name = name;
-//   }
-//   unmount() {}
-// }
 
 const screens = {
   topics: async () => {
     const data = await ros.getTopics();
 
-    const list = new List(_.map(data.topics, 'name').sort(), screen);
-    list.on('select', x => screens.topic(x.content));
-    setScreen(list.render());
+    // turn list into file-tree like structure, splitting on '/'
+    const sortedList = _.map(data.topics, 'name').sort();
+    const obj = {};
+
+    const addToObject = (parts, obj) => {
+      if (parts.length > 0) {
+        const name = parts.shift();
+        if (!obj[name]) {
+          obj[name] = {name, children: {}};
+        }
+        if (parts.length > 0) {
+          // not a leaf yet
+          addToObject(parts, obj[name].children);
+        } else {
+          // it's a leaf, i.e., a topic
+          obj[name].topic = true;
+        }
+      }
+    };
+
+    sortedList.forEach(topic => {
+      const parts = topic.split('/');
+      addToObject(parts.slice(1), obj);
+    });
+
+
+    const tree = new Tree(obj, screen, {
+      renderer: ({name, topic}) => {
+        const fontColor = (topic ? 'white' : '#777777');
+        return `{bold}{${fontColor}-fg}${name}{/${fontColor}-fg}{/bold}`
+      }
+    });
+    // list.on('select', x => screens.topic(x));
+    tree.on('select', x => x.topic && screens.topic('/' + x._path.join('/')));
+    setScreen(tree.render());
   },
 
 
@@ -228,19 +262,23 @@ const screens = {
 
   services: async () => {
     const state = ros.getState();
-    log(state);
-    const list = blessed.list({
-      items: Object.keys(state.services).sort(),
-      keys: true,
-      style: {
-        selected: {
-          fg: 'blue'
-        }
-      },
-    });
-    setScreen(list);
-    list.focus();
-    list.on('select', x => screens.service(x.content));
+    // log(state);
+    // const list = blessed.list({
+    //   items: Object.keys(state.services).sort(),
+    //   keys: true,
+    //   style: {
+    //     selected: {
+    //       fg: 'blue'
+    //     }
+    //   },
+    // });
+    // setScreen(list);
+    // list.focus();
+    // list.on('select', x => screens.service(x.content));
+
+    const list = new List(Object.keys(state.services).sort(), screen);
+    list.on('select', x => screens.service(x));
+    setScreen(list.render());
   },
 
   service: async (serviceName) => {
@@ -258,7 +296,7 @@ const screens = {
     const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
     decorateTFTree(decorated);
     log('after', decorated);
-    const t = new Tree(decorated, {
+    const t = new Tree(decorated, screen, {
       renderer: treeNode => `${treeNode.name} ${treeNode.publisher ? `[${treeNode.publisher}]` : ''}`
     });
     let from;
@@ -370,28 +408,22 @@ const menu = blessed.listbar({
   }
 });
 
-// Append our box to the screen.
-screen.append(menu);
-screen.append(body);
-const bottomText = blessed.text({
-  bottom: 0,
-  content: 'info here',
-  style: {
-    bg: '#0000a0',
-  },
-  hidden: true // unhide on demand
-});
-screen.append(bottomText);
 
 // ---------------------------------------
 // MAIN
-setScreen('Select a tab (using number keys) to get started.');
 
-// Focus our element.
-menu.focus();
+screen.append(blessed.text({content: 'Connecting to ROS master..'}))
+screen.render();
 
 // Render the screen.
-console.log('connecting to ROS master');
 const ros = new ROS(log, () => {
+    // Append our box to the screen.
+    screen.
+    screen.append(menu);
+    screen.append(body);
+    screen.append(bottomText);
+    // Focus our element.
+    menu.focus();
+    setScreen('Select a tab (using number keys) to get started.');
     screen.render();
   }, [fs.createWriteStream('/tmp/ros-blessed.ros.log')]);
