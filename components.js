@@ -5,6 +5,9 @@ const EventEmitter = require('events');
 
 const { log } = require('./utils.js');
 
+const hasChildren = (node) =>
+  node.children && Object.keys(node.children).length > 0;
+
 /** A better tree component for blessed */
 class Tree extends EventEmitter {
 
@@ -14,7 +17,7 @@ class Tree extends EventEmitter {
     this.screen = screen;
 
     // this.lines = this.createTree(structure, options).split('\n');
-    this.lines = this.createTree(structure, options);
+    this.lines = this.createTree(structure, options, options.collapsed);
     const mergedStyle = Object.assign({
         keys: true,
         style: {
@@ -84,7 +87,7 @@ class Tree extends EventEmitter {
   toggle(path, subtree) {
     log('toggle', path);
     if (path.length == 0) {
-      if (!subtree.children || Object.keys(subtree.children).length == 0) {
+      if (!hasChildren(subtree)) {
         return; // no children to collapse
       }
       subtree._collapsed = !subtree._collapsed;
@@ -98,7 +101,7 @@ class Tree extends EventEmitter {
   }
 
   // Modified from https://github.com/A1rPun/formatree/blob/master/index.js
-  createTree(structure = {}, options = {}) {
+  createTree(structure = {}, options = {}, collapsed = undefined) {
     const newLine = '\n';
     const sibling = options.sibling || '├── ';
     const lastSibling = options.lastSibling || '└── ';
@@ -129,7 +132,10 @@ class Tree extends EventEmitter {
           line._label = val.name;
         }
 
-        if (val.children && !val._collapsed) {
+        if (hasChildren(val) && collapsed) {
+          val._collapsed = true; // start out collapsed
+        }
+        if (hasChildren(val) && !val._collapsed) {
           result = result.concat(
             formatree(
               Object.values(val.children),

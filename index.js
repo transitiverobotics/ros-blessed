@@ -121,7 +121,8 @@ const screens = {
       renderer: ({name, topic}) => {
         const fontColor = (topic ? 'white' : '#777777');
         return `{bold}{${fontColor}-fg}${name}{/${fontColor}-fg}{/bold}`
-      }
+      },
+      collapsed: true
     });
     // list.on('select', x => screens.topic(x));
     tree.on('select', x => x.topic && screens.topic('/' + x._path.join('/')));
