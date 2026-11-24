@@ -2,7 +2,6 @@
 
 'use strict';
 
-const fs = require('fs');
 const util = require('util');
 const blessed = require('blessed');
 const _ = require('lodash');
@@ -227,12 +226,13 @@ const screens = {
       const timeDiff = (Date.now() - stats.times[0]) / 1e3;
       const hz = stats.times.length > 1 ? stats.times.length/timeDiff : 0;
       const sum = stats.sizes.reduce((sum, size) => sum += size, 0);
-      const bw = stats.sizes.length > 0 && (sum / timeDiff) / 1e3;
+      // message size is only known in ROS 1
+      const bw = stats.sizes.length > 0 && !isNaN(sum) && (sum / timeDiff) / 1e3;
       info.setContent([
           `Topic: ${topicName}`,
           `Type: ${type}`,
           `${hz.toLocaleString()} Hz`,
-          `${bw.toLocaleString()} KB/s`
+          bw === false ? '' : `${bw.toLocaleString()} KB/s`
         ].join('  '));
 
       ros.getSystemState().then(state => {
@@ -283,13 +283,16 @@ const screens = {
   },
 
   service: async (serviceName) => {
-    const client = await ros.getService(serviceName);
-    const template = ros.getServiceDefinition(client);
-    if (template == "{}") {
-      const response = await client.call({});
-      setScreen(JSON.stringify(response, true, 2));
+    const service = await ros.getService(serviceName);
+    if (!service) {
+      setScreen(`unable to get type of service ${serviceName}`);
+      return;
+    }
+    if (_.isEmpty(service.template)) {
+      const result = await ros.callService(service);
+      setScreen(JSON.stringify(result, null, 2));
     } else {
-      setScreen(`need input: ${template} -- not yet implemented`);
+      setScreen(`need input: ${JSON.stringify(service.template)} -- not yet implemented`);
     }
   },
 
@@ -413,7 +416,7 @@ const menu = blessed.listbar({
 // ---------------------------------------
 // MAIN
 
-screen.append(blessed.text({content: 'Connecting to ROS master..'}))
+screen.append(blessed.text({content: 'Connecting to ROS..'}))
 screen.render();
 
 // Render the screen.
@@ -427,4 +430,4 @@ const ros = new ROS(log, () => {
     menu.focus();
     setScreen('Select a tab (using number keys) to get started.');
     screen.render();
-  }, [fs.createWriteStream('/tmp/ros-blessed.ros.log')]);
+  });
