@@ -41,12 +41,7 @@ describe('ROS adapter on ROS 2', () => {
     getTypeTemplate: (pkg, cat, name) => (assert.deepEqual([pkg, cat, name],
       ['std_srvs', 'srv', 'Trigger']), {}),
     callService: async (name, type, req) => ({success: true, name, type, req}),
-    node: {
-      getNodeNamesAndNamespaces: () => [{name: 'talker', namespace: '/'}],
-      getPublisherNamesAndTypesByNode: () => [{name: '/chatter'}],
-      getSubscriptionNamesAndTypesByNode: () => [],
-      getServiceNamesAndTypesByNode: () => [{name: '/talker/trigger'}],
-    }
+    getServices: async () => ['/talker/trigger'],
   };
   let ros;
   before(async () => ros = await makeROS(fake));
@@ -56,19 +51,15 @@ describe('ROS adapter on ROS 2', () => {
       {topics: [{name: '/chatter', type: 'std_msgs/msg/String'}]});
   });
 
-  it('builds the system state from the ROS 2 graph', async () => {
-    assert.deepEqual(await ros.getSystemState(), {
-      publishers: {'/chatter': ['/talker']},
-      subscribers: {},
-      services: {'/talker/trigger': ['/talker']}
-    });
-  });
-
   it('subscribes with the topic type and passes it to the callback', async () => {
     let got;
     await ros.subscribe('/chatter', (...args) => got = args);
     subscriptions['/chatter'].cb({data: 'hi'});
     assert.deepEqual(got, [{data: 'hi'}, 'std_msgs/msg/String', undefined, undefined]);
+  });
+
+  it('lists services', async () => {
+    assert.deepEqual(await ros.getServices(), ['/talker/trigger']);
   });
 
   it('gets and calls a service', async () => {
@@ -89,17 +80,11 @@ describe('ROS adapter on ROS 2', () => {
 
 describe('ROS adapter on ROS 1', () => {
   const subscriptions = {};
-  const masterApi = {
-    getSystemState: async () => ({publishers: {'/chatter': ['/talker']},
-      subscribers: {}, services: {}}),
-    lookupNode: async () => [1, '', 'http://host:1234/']
-  };
   const fake = {
     rosVersion: 1,
     init: async () => {},
     getTopicsWithTypes: async () => [{name: '/chatter', type: 'std_msgs/String'}],
     subscribe: (topic, type, cb) => subscriptions[topic] = {type, cb},
-    rn: {_node: {_masterApi: masterApi}},
   };
   let ros;
   before(async () => ros = await makeROS(fake));
@@ -108,16 +93,11 @@ describe('ROS adapter on ROS 1', () => {
     assert.equal(subscriptions['/tf'].type, 'tf2_msgs/TFMessage');
   });
 
-  it('passes size and publisher URI through', async () => {
+  it('passes message size through', async () => {
     let got;
     await ros.subscribe('/chatter', (...args) => got = args);
     subscriptions['/chatter'].cb({data: 'hi'}, 42, 'http://host:1234/');
     assert.deepEqual(got,
       [{data: 'hi'}, 'std_msgs/String', 42, 'http://host:1234/']);
-  });
-
-  it('maps node URIs to names', async () => {
-    await ros.updateState();
-    assert.equal(ros.getNodeName('http://host:1234/'), '/talker');
   });
 });

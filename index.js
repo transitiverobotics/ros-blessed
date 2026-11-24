@@ -152,33 +152,8 @@ const screens = {
     });
     list.on('select', x => log(Object.keys(x), x.index, x.position));
 
-    const publishers = blessed.list({
-      // top: 3, // will be adjusted on the fly
-      items: ['Publishers: ...'],
-      keys: true,
-      style: {
-        selected: {
-          fg: 'red'
-        }
-      },
-    });
-    publishers.on('select', x => log(Object.keys(x), x.index, x.position));
-
-    const subscribers = blessed.list({
-      // top: 5, // will be adjusted on the fly
-      items: ['Subscribers: ...'],
-      keys: true,
-      style: {
-        selected: {
-          fg: 'cyan'
-        },
-      },
-    });
-    subscribers.on('select', x => log(Object.keys(x), x.index, x.position));
 
     box.append(info);
-    box.append(publishers);
-    box.append(subscribers);
     box.append(list);
     setScreen(box.get());
 
@@ -235,20 +210,6 @@ const screens = {
           bw === false ? '' : `${bw.toLocaleString()} KB/s`
         ].join('  '));
 
-      ros.getSystemState().then(state => {
-        const pubList = state.publishers[topicName] || [];
-        pubList.unshift('Publishers:');
-        publishers.setItems(pubList);
-        publishers.height = pubList.length;
-
-        const subList = state.subscribers[topicName] || [];
-        subList.unshift('Subscribers:');
-        subscribers.setItems(subList);
-        subscribers.height = subList.length;
-
-        screen.render();
-      });
-
       screen.render();
     };
     updateInfo();
@@ -262,7 +223,7 @@ const screens = {
 
 
   services: async () => {
-    const state = ros.getState();
+    const services = await ros.getServices();
     // log(state);
     // const list = blessed.list({
     //   items: Object.keys(state.services).sort(),
@@ -277,7 +238,7 @@ const screens = {
     // list.focus();
     // list.on('select', x => screens.service(x.content));
 
-    const list = new List(Object.keys(state.services).sort(), screen);
+    const list = new List(services.sort(), screen);
     list.on('select', x => screens.service(x));
     setScreen(list.render());
   },
@@ -297,11 +258,9 @@ const screens = {
   },
 
   tfTree: () => {
-    const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
-    decorateTFTree(decorated);
-    log('after', decorated);
-    const t = new Tree(decorated, screen, {
-      renderer: treeNode => `${treeNode.name} ${treeNode.publisher ? `[${treeNode.publisher}]` : ''}`
+    const forest = JSON.parse(JSON.stringify(ros.getTFForest()));
+    const t = new Tree(forest, screen, {
+      renderer: treeNode => treeNode.name
     });
     let from;
     t.on('select', node => {
@@ -326,9 +285,8 @@ const screens = {
     setScreen(rendered);
 
     const update = () => {
-      const decorated = JSON.parse(JSON.stringify(ros.getTFForest()));
-      decorateTFTree(decorated);
-      t.update(decorated);
+      const forest = JSON.parse(JSON.stringify(ros.getTFForest()));
+      t.update(forest);
       screen.render();
     };
 
@@ -380,15 +338,6 @@ const screens = {
     });
   }
 };
-
-/** decorate TF tree with publisher names */
-const decorateTFTree = (tree) => {
-  _.each(tree, node => {
-    node.publisher = node.custom && ros.getNodeName(node.custom.nodeUri);
-    decorateTFTree(node.children);
-  });
-};
-
 
 const menu = blessed.listbar({
   items: {
