@@ -43,9 +43,9 @@ describe('ROS adapter on ROS 2', () => {
     callService: async (name, type, req) => ({success: true, name, type, req}),
     node: {
       getNodeNamesAndNamespaces: () => [{name: 'talker', namespace: '/'}],
-      getPublisherNamesAndTypesByNodeName: () => [{name: '/chatter'}],
-      getSubscriptionNamesAndTypesByNodeName: () => [],
-      getServiceNamesAndTypesByNodeName: () => [{name: '/talker/trigger'}],
+      getPublisherNamesAndTypesByNode: () => [{name: '/chatter'}],
+      getSubscriptionNamesAndTypesByNode: () => [],
+      getServiceNamesAndTypesByNode: () => [{name: '/talker/trigger'}],
     }
   };
   let ros;

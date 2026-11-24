@@ -118,11 +118,11 @@ class ROS {
 
     node.getNodeNamesAndNamespaces().forEach(({name, namespace}) => {
       const fullName = `${namespace.replace(/\/$/, '')}/${name}`;
-      node.getPublisherNamesAndTypesByNodeName(name, namespace)
+      node.getPublisherNamesAndTypesByNode(name, namespace)
         .forEach(t => add(state.publishers, t.name, fullName));
-      node.getSubscriptionNamesAndTypesByNodeName(name, namespace)
+      node.getSubscriptionNamesAndTypesByNode(name, namespace)
         .forEach(t => add(state.subscribers, t.name, fullName));
-      node.getServiceNamesAndTypesByNodeName(name, namespace)
+      node.getServiceNamesAndTypesByNode(name, namespace)
         .forEach(t => add(state.services, t.name, fullName));
     });
     return state;
