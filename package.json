@@ -23,9 +23,9 @@
   "author": "Christian Fritz",
   "license": "MIT",
   "dependencies": {
+    "@transitive-sdk/utils-ros": "^0.17.1",
     "blessed": "^0.1.81",
     "lodash": "^4.17.20",
-    "rosnodejs": "github:chfritz/rosjs",
     "tf-rosnodejs": "^0.3.1"
   },
   "devDependencies": {

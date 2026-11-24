@@ -1,45 +1,78 @@
-const rosnodejs = require('rosnodejs');
+/**
+  Thin adapter between the ros-blessed UI and @transitive-sdk/utils-ros.
+
+  utils-ros gives us one interface for ROS 1 (rosnodejs) and ROS 2
+  (rclnodejs). This class keeps the small API that index.js already uses and
+  fills the few gaps (system graph, TF) per ROS version.
+*/
 const _ = require('lodash');
 const tf = require('tf-rosnodejs');
+const { ROSs, getForVersion } = require('@transitive-sdk/utils-ros');
 
-// const std_msgs = rosnodejs.require('std_msgs').msg;
-// const SetBool = rosnodejs.require('std_srvs').srv.SetBool;
+/** Split 'pkg/Type' (ROS 1) or 'pkg/srv/Type' (ROS 2) into [pkg, Type]. */
+const splitType = (type) => {
+  const parts = type.split('/');
+  return [parts[0], parts[parts.length - 1]];
+};
 
 let log;
 class ROS {
 
-  constructor(_log, cb, logStreams = []) {
+  constructor(_log, cb) {
     log = _log;
-    rosnodejs.log.clearStreams(); // remove all existing log streams
-    // TODO: show errors/warnings somewhere in the app, not just in file-log
-    // see (below)
 
-    rosnodejs.initNode('/ros_blessed', {
-      node: { forceExit: true },
-      logging: {streams: logStreams}
-    }).then((rosNode) => {
-      this.rn = rosNode;
-      tf.init(rosNode);
+    // Prefer the ROS version of the sourced workspace, else whatever
+    // utils-ros found in /opt/ros.
+    this.ros = getForVersion(process.env.ROS_VERSION) || ROSs[0];
+    if (!this.ros) {
+      throw new Error(
+        'No ROS installation found. Source your ROS 1 or ROS 2 setup file.');
+    }
+    this.version = this.ros.rosVersion;
+    this.nodes = {};
+
+    this.ros.init().then(() => {
+      this.initTF();
       this.updateState();
       setInterval(this.updateState.bind(this), 5000);
       cb();
+    }).catch(error => {
+      log('failed to initialize ROS', error);
+      console.error(`Failed to connect to ROS ${this.version}:`, error.message);
+      process.exit(1);
     });
   }
 
-  /** fetch the state from the ROS master and update the list of nodes we
-  maintain */
+  /** Message type name in the format of the active ROS version. */
+  type(pkg, name, category = 'msg') {
+    return this.version == 1 ? `${pkg}/${name}` : `${pkg}/${category}/${name}`;
+  }
+
+  /** tf-rosnodejs only needs an object with a rosnodejs-like `subscribe`, so
+  we give it one backed by utils-ros. This works for ROS 1 and ROS 2. */
+  initTF() {
+    const shim = {
+      subscribe: (topic, _type, callback) =>
+        this.ros.subscribe(topic, this.type('tf2_msgs', 'TFMessage'), callback)
+    };
+    tf.init(shim);
+  }
+
+  /** fetch the system graph and update the list of nodes we maintain */
   async updateState() {
     this.state = await this.getSystemState();
+    if (this.version != 1) return; // node URIs only exist in ROS 1
+
     const nodeNames = _.uniq(_.flattenDeep([
       Object.values(this.state.publishers),
       Object.values(this.state.subscribers),
       Object.values(this.state.services) ]));
-    const nodes = {};
+    const masterApi = this.ros.rn._node._masterApi;
     const all = await Promise.all(nodeNames.map(async name => {
-      const resp = await this.rn._node._masterApi.lookupNode('/ros-blessed', name, {});
-      const uri = resp[2];
-      return {name, uri};
+      const resp = await masterApi.lookupNode('/ros-blessed', name, {});
+      return {name, uri: resp[2]};
     }));
+    const nodes = {};
     all.forEach(({name, uri}) => nodes[uri] = name);
     this.nodes = nodes;
   }
@@ -48,46 +81,65 @@ class ROS {
 
   getNodeName(nodeUri) { return this.nodes[nodeUri]; }
 
+  /** List of published topics as {topics: [{name, type}]} */
   async getTopics() {
-    if (!this.rn) {
-      console.warn('not connected to ROS master');
-      return;
-    }
-    return this.rn._node._masterApi.getPublishedTopics();
+    const topics = await this.ros.getTopicsWithTypes();
+    return {topics: topics.map(({name, type, types}) =>
+      ({name, type: type || types[0]}))};
   }
 
   async subscribe(topic, callback) {
-    const response = await this.rn._node._masterApi.getPublishedTopics();
-    const info = _.find(response.topics, {name: topic});
-    this.rn.subscribe(topic, info.type, (data, size, nodeUri) =>
+    const {topics} = await this.getTopics();
+    const info = _.find(topics, {name: topic});
+    if (!info) {
+      log(`topic ${topic} not found`);
+      return;
+    }
+    // ROS 1 also passes message size and publisher URI; ROS 2 only the message
+    this.ros.subscribe(topic, info.type, (data, size, nodeUri) =>
       callback(data, info.type, size, nodeUri));
   }
 
   unsubscribe(topic) {
-    this.rn.unsubscribe(topic);
+    this.ros.unsubscribe(topic);
   }
 
+  /** Get {publishers, subscribers, services}, each mapping a topic/service
+  name to the list of node names that provide/use it (ROS 1 master format). */
   async getSystemState() {
-    if (!this.rn) {
-      console.warn('not connected to ROS master');
-      return;
+    if (this.version == 1) {
+      return this.ros.rn._node._masterApi.getSystemState();
     }
-    return this.rn._node._masterApi.getSystemState();
+
+    // ROS 2 has no master, so collect the same info from the ROS graph
+    const node = this.ros.node;
+    const state = {publishers: {}, subscribers: {}, services: {}};
+    const add = (obj, key, value) => (obj[key] ||= []).push(value);
+
+    node.getNodeNamesAndNamespaces().forEach(({name, namespace}) => {
+      const fullName = `${namespace.replace(/\/$/, '')}/${name}`;
+      node.getPublisherNamesAndTypesByNodeName(name, namespace)
+        .forEach(t => add(state.publishers, t.name, fullName));
+      node.getSubscriptionNamesAndTypesByNodeName(name, namespace)
+        .forEach(t => add(state.subscribers, t.name, fullName));
+      node.getServiceNamesAndTypesByNodeName(name, namespace)
+        .forEach(t => add(state.services, t.name, fullName));
+    });
+    return state;
   }
 
+  /** Get the type of the service and a template for its request. */
   async getService(serviceName) {
-    const options = {};
-    const type = await this.rn.getServiceHeader(serviceName);
-    return this.rn.serviceClient(serviceName, type.type);
+    const type = await this.ros.getServiceType(serviceName);
+    if (!type) return null;
+    const [pkg, name] = splitType(type);
+    const template = this.ros.getTypeTemplate(pkg, 'srv', name);
+    return {name: serviceName, type, template};
   }
 
-  getServiceDefinition(client) {
-    const type = client.getType();
-    const [pkg, subtype] = type.split('/');
-    const Type = rosnodejs.require(pkg).srv[subtype];
-    const template = JSON.stringify(new Type.Request());
-    log(Type.Request.messageDefinition(), template);
-    return template;
+  /** Call service, returns {success, response} or {success, error} */
+  callService(service, request = {}) {
+    return this.ros.callService(service.name, service.type, request);
   }
 
   getTFForest() {
@@ -97,7 +149,7 @@ class ROS {
   getTF = tf.getTF;
 
   shutdown() {
-    rosnodejs.shutdown();
+    this.ros.shutdown();
     log('shut down ros node');
   }
 };
